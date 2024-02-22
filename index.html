@@ -1,0 +1,205 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cascade GPT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+    />
+  </head>
+  <style>
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .spinner {
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top: 4px solid #3498db;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+  </style>
+  <body class="bg-gray-200 flex">
+    <div class="w-1/4 bg-gray-100 h-screen p-4">
+      <h2 class="text-lg font-semibold">Assistants</h2>
+      <!-- assistants get appended here dynamically -->
+    </div>
+    <div class="flex-1 flex flex-col">
+      <div class="flex-1 overflow-y-auto p-4" id="chatContainer">
+        <ul id="chat" class="space-y-4">
+          <!-- Chat messages will be appended here -->
+        </ul>
+      </div>
+      <div class="p-4 border-t border-gray-200">
+        <input
+          type="text"
+          id="userInput"
+          class="border p-2 w-full rounded"
+          placeholder="Type a message..."
+        />
+        <button
+          id="sendBtn"
+          class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded block mt-2 w-full"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  </body>
+</html>
+
+<script>
+  const assistants = [
+    {
+      name: "Cascade Receptionist",
+      id: "asst_NJE5CJxW5LqRFhZ5a6hxii5P",
+      description:
+        "The default assistant, answers questions about the Cascade chat hub",
+    },
+    {
+      name: "Mabel",
+      id: "asst_9fcNMmq9WlnOnZqrHNzpmRIE",
+      description:
+        "Mabel is a virtual assistant that can help you with your questions about the employee handbook",
+    },
+    {
+      name: "Carl",
+      id: "asst_3EOuXnUsj2ePUKK4Bm1cucUn",
+      description:
+        "Carl is a virtual assistant that tells you why not to buy a fence",
+    },
+    {
+      name: "Cascade Custom Pricing",
+      id: "asst_o1AboByuTYpD9K76m07fcwW9",
+      description:
+        "Use for custom pricing questions, such as 'How much does a 12x20 preset deck cost?'",
+    },
+  ];
+
+  const settingsContainer = document.querySelector(".bg-gray-100");
+
+  // Assuming the first assistant is the default
+  let assistantId = assistants[0].id; // Initialize the assistantId to the first assistant
+  let threadId = null; // Initialize the threadId to an empty string
+
+  assistants.forEach((assistant) => {
+    const button = document.createElement("button");
+    button.textContent = assistant.name;
+    button.classList.add(
+      "bg-gray-500",
+      "hover:bg-blue-700",
+      "text-white",
+      "font-bold",
+      "py-2",
+      "px-4",
+      "rounded",
+      "block",
+      "mt-2",
+      "w-full"
+    );
+
+    // Highlight the default assistant button
+    if (assistant.id === assistantId) {
+      button.classList.add("bg-blue-700");
+      button.classList.remove("bg-gray-500"); // Optional: Remove the default bg color if needed
+    }
+
+    button.addEventListener("click", () => {
+      assistantId = assistant.id;
+      threadId = null; // Reset the threadId when a new assistant is selected
+      document.getElementById("chat").innerHTML = ""; // Clear the chat when a new assistant is selected
+
+      // Highlight the clicked assistant and reset others
+      const buttons = settingsContainer.querySelectorAll("button");
+      buttons.forEach((btn) => {
+        btn.classList.remove("bg-blue-700");
+        btn.classList.add("bg-gray-500");
+      });
+      button.classList.add("bg-blue-700");
+      button.classList.remove("bg-gray-500");
+    });
+
+    settingsContainer.appendChild(button);
+  });
+
+  // Function to handle sending a message
+  async function sendMessage() {
+    const userInput = document.getElementById("userInput").value;
+
+    // Display the user's message immediately
+    displayMessage(userInput, "user");
+    document.getElementById("userInput").value = ""; // Clear input after sending
+
+    // Add the loading spinner to the chat
+    const spinner = document.createElement("div");
+    spinner.className = "spinner";
+    chat.appendChild(spinner);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        //content and threadId are the two parameters that the server expects
+        body: JSON.stringify({
+          content: userInput,
+          threadId: threadId,
+          assistantId: assistantId,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Network response was not ok.");
+
+      const data = await response.json(); // Now expects {"message": "Your message here", "threadId": "1234"} format
+
+      chat.removeChild(spinner); // Remove the spinner after the response is received
+
+      // Directly display the returned message under the assumption it's in the correct format
+      displayMessage(data.message, "assistant"); // Use "assistant" as the role for styling
+      threadId = data.threadId;
+    } catch (error) {
+      console.error("Error fetching:", error);
+      chat.removeChild(spinner);
+    }
+  }
+
+  document.getElementById("sendBtn").addEventListener("click", sendMessage);
+
+  document.getElementById("userInput").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault(); // Prevent the default action to stop form submission or any other default behavior
+      sendMessage();
+    }
+  });
+
+  function displayMessage(messageText, role) {
+    const chat = document.getElementById("chat");
+    const messageElement = document.createElement("li");
+    const chatContainer = document.getElementById("chatContainer");
+
+    messageElement.classList.add("my-2", "p-2", "rounded"); // Additional styling
+    if (role === "user") {
+      messageElement.classList.add("bg-blue-200", "text-right", "ml-auto"); // User message styling
+    } else {
+      messageElement.classList.add("bg-gray-200", "text-left", "mr-auto"); // Assistant message styling
+    }
+
+    // Set innerHTML instead of textContent to preserve HTML formatting
+    messageElement.innerHTML = messageText;
+    chat.appendChild(messageElement);
+
+    // Scroll to the bottom of the chat container
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+</script>
