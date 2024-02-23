@@ -72,8 +72,6 @@ export default async (req, res) => {
           (message) => message.role === "assistant"
         );
 
-        //
-
         //console.log the final assistant message and include the html content
         //get the content that is this format content: [ { type: 'text', text: [Object] } ],
         console.log("lastAssistantMessage", lastAssistantMessage.content);
