@@ -92,6 +92,7 @@
   let assistantId = assistants[0].id; // Initialize the assistantId to the first assistant
   let threadId = null; // Initialize the threadId to an empty string
 
+  //create buttons for each assistant
   assistants.forEach((assistant) => {
     const button = document.createElement("button");
     button.textContent = assistant.name;
